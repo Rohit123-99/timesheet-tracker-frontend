@@ -10,7 +10,9 @@ interface StatCardProps {
   trend?: {
     value: string;
     isPositive: boolean;
+    label?: string;
   };
+  trendMessage?: string;
 }
 
 export function StatCard({
@@ -20,6 +22,7 @@ export function StatCard({
   description,
   gradient = 'from-blue-500 to-purple-500',
   trend,
+  trendMessage,
 }: StatCardProps) {
   return (
     <motion.div
@@ -34,12 +37,13 @@ export function StatCard({
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
           {trend && (
             <div className="flex items-center gap-1 mt-2">
-              <span className={`text-sm ${trend.isPositive ? 'text-green-500' : 'text-red-500'}`}>
-                {trend.isPositive ? 'Up' : 'Down'} {trend.value}
+              <span className={`text-sm font-medium ${trend.isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                {trend.isPositive ? '↑' : '↓'} {trend.value}
               </span>
-              <span className="text-xs text-muted-foreground">vs last week</span>
+              <span className="text-xs text-muted-foreground">{trend.label ?? 'vs last week'}</span>
             </div>
           )}
+          {!trend && trendMessage && <p className="text-xs text-muted-foreground mt-2">{trendMessage}</p>}
         </div>
         <div className={`p-3 rounded-xl bg-gradient-to-br ${gradient}`}>
           <Icon className="w-6 h-6 text-white" />

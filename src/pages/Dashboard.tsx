@@ -33,6 +33,7 @@ import {
 } from '../data/api';
 import { formatHours, toLocalDateString } from '../utils/helpers';
 import { toast } from 'sonner';
+import { useSelectedDate } from '../contexts/DateContext';
 
 type EditForm = {
   name: string;
@@ -43,8 +44,10 @@ type EditForm = {
 };
 
 export default function Dashboard() {
+  const { selectedDate } = useSelectedDate();
   const [dailyGoal, setDailyGoal] = useState(8);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [yesterdayTasks, setYesterdayTasks] = useState<Task[]>([]);
   const [showAddTask, setShowAddTask] = useState(false);
   const [showGoalDialog, setShowGoalDialog] = useState(false);
   const [goalInput, setGoalInput] = useState('');
@@ -53,17 +56,20 @@ export default function Dashboard() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
 
-  const todayStr = toLocalDateString();
+  const todayStr = toLocalDateString(selectedDate);
+  const yesterdayStr = toLocalDateString(new Date(selectedDate.getTime() - 24 * 60 * 60 * 1000));
 
   const loadData = async () => {
     try {
-      const [settings, dailyTasks, weeklyReport] = await Promise.all([
+      const [settings, dailyTasks, previousDayTasks, weeklyReport] = await Promise.all([
         fetchAllSettings(),
         fetchTasksForDate(todayStr),
+        fetchTasksForDate(yesterdayStr),
         fetchWeeklyReport(),
       ]);
       setDailyGoal(settings.target_hours);
       setTasks(dailyTasks);
+      setYesterdayTasks(previousDayTasks);
       setWeeklyAverage(weeklyReport.summary?.daily_average ?? 0);
     } catch (e) {
       console.error('Failed to fetch data:', e);
@@ -75,12 +81,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadData();
-  }, [todayStr]);
+  }, [todayStr, yesterdayStr]);
 
   const todayTasks = tasks;
+  const yesterdayTotalWorked = yesterdayTasks.reduce((sum, task) => sum + task.actualHours, 0);
   const totalWorked = todayTasks.reduce((sum, task) => sum + task.actualHours, 0);
   const remaining = Math.max(0, dailyGoal - totalWorked);
   const progressPercentage = dailyGoal > 0 ? (totalWorked / dailyGoal) * 100 : 0;
+  const hasComparison = yesterdayTotalWorked > 0;
+  const hoursDeltaPct = hasComparison
+    ? ((totalWorked - yesterdayTotalWorked) / yesterdayTotalWorked) * 100
+    : 0;
+  const todayTrend = hasComparison
+    ? { value: `${Math.abs(hoursDeltaPct).toFixed(0)}%`, isPositive: hoursDeltaPct >= 0, label: 'vs yesterday' }
+    : undefined;
 
   const handleAddTask = async (taskData: Omit<Task, 'id' | 'status'>) => {
     try {
@@ -193,12 +207,19 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
+      <div>
+        <h2 className="text-2xl font-semibold">Dashboard</h2>
+        <p className="text-sm text-muted-foreground mt-1">Track daily progress and today's execution</p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Total Hours Today"
           value={formatHours(totalWorked)}
           icon={Clock}
           gradient="from-blue-500 to-cyan-500"
+          trend={todayTrend}
+          trendMessage={hasComparison ? undefined : 'No comparison available'}
         />
         <StatCard
           title="Tasks Completed"
@@ -216,9 +237,9 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="p-6 bg-gradient-to-br from-card to-card/50 shadow-md">
+        <Card className="p-6 bg-gradient-to-br from-card to-card/50 shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold">Daily Goal and Progress</h3>
+            <h3 className="text-lg font-semibold">Daily Goal & Progress</h3>
             <Button
               variant="ghost"
               size="sm"
@@ -263,7 +284,7 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        <Card className="lg:col-span-2 p-6 bg-gradient-to-br from-card to-card/50 shadow-md">
+        <Card className="lg:col-span-2 p-6 bg-gradient-to-br from-card to-card/50 shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold">Today's Tasks</h3>
             <Button
@@ -275,7 +296,7 @@ export default function Dashboard() {
             </Button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {todayTasks.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <ListChecks className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -290,12 +311,13 @@ export default function Dashboard() {
                     key={task.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ x: isEditing ? 0 : 4 }}
                     className={`
-                      p-4 rounded-lg border transition-all
+                      p-4 rounded-xl border transition-all
                       ${
                         task.status === 'complete'
-                          ? 'bg-green-50 border-green-200 text-foreground dark:bg-green-900/30 dark:border-green-800'
-                          : 'bg-muted/30 border-border hover:border-border/80'
+                          ? 'bg-green-50/95 border-green-200 text-foreground dark:bg-green-950/25 dark:border-green-800/70'
+                          : 'bg-muted/30 border-border hover:border-border/80 hover:bg-muted/40'
                       }
                     `}
                   >
@@ -378,7 +400,7 @@ export default function Dashboard() {
                               inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium
                               ${
                                 task.status === 'complete'
-                                  ? 'bg-green-100 text-green-700'
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400'
                               }
                             `}
@@ -447,6 +469,7 @@ export default function Dashboard() {
         onOpenChange={setShowAddTask}
         onAddTask={handleAddTask}
         categories={mockCategories}
+        initialDate={selectedDate}
       />
 
       <Dialog open={showGoalDialog} onOpenChange={setShowGoalDialog}>

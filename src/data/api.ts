@@ -8,6 +8,9 @@ declare global {
     pywebview?: {
       api?: {
         save_file_dialog?: (defaultName?: string) => Promise<string | null> | string | null;
+        minimize_window?: () => Promise<boolean> | boolean;
+        toggle_fullscreen_window?: () => Promise<boolean> | boolean;
+        close_window?: () => Promise<boolean> | boolean;
       };
     };
   }
@@ -91,10 +94,24 @@ export const fetchWeeklyReport = async (): Promise<any> => {
   return request('/reports/weekly');
 };
 
+export const fetchReportForRange = async (startDate: string, endDate: string): Promise<any> => {
+  const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  return request(`/reports/range?${params.toString()}`);
+};
+
 export const getApiBase = (): string => API_BASE;
 
 export const exportWeeklyReportPdf = async (): Promise<Blob> => {
   const response = await fetch(`${API_BASE}/reports/export`);
+  if (!response.ok) {
+    throw new Error(`Export failed: ${response.status}`);
+  }
+  return response.blob();
+};
+
+export const exportReportPdfForRange = async (startDate: string, endDate: string): Promise<Blob> => {
+  const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  const response = await fetch(`${API_BASE}/reports/export?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`Export failed: ${response.status}`);
   }
@@ -106,6 +123,14 @@ export const exportWeeklyReportPdfToPath = async (filepath: string): Promise<voi
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filepath })
+  });
+};
+
+export const exportReportPdfForRangeToPath = async (filepath: string, startDate: string, endDate: string): Promise<void> => {
+  await request('/reports/export/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filepath, start_date: startDate, end_date: endDate })
   });
 };
 
@@ -122,6 +147,24 @@ export const choosePdfSavePath = async (defaultName = 'Weekly_Report.pdf'): Prom
   if (!dialog) return null;
   const selected = await dialog(defaultName);
   return selected || null;
+};
+
+export const minimizeDesktopWindow = async (): Promise<boolean> => {
+  const fn = window.pywebview?.api?.minimize_window;
+  if (!fn) return false;
+  return Boolean(await fn());
+};
+
+export const toggleDesktopFullscreen = async (): Promise<boolean> => {
+  const fn = window.pywebview?.api?.toggle_fullscreen_window;
+  if (!fn) return false;
+  return Boolean(await fn());
+};
+
+export const closeDesktopWindow = async (): Promise<boolean> => {
+  const fn = window.pywebview?.api?.close_window;
+  if (!fn) return false;
+  return Boolean(await fn());
 };
 
 export const notifySettingsUpdated = (): void => {
