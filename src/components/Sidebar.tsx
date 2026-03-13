@@ -70,7 +70,7 @@ export function Sidebar() {
       <div className="p-4 border-t border-sidebar-border">
         <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 rounded-lg p-4">
           <p className="text-xs text-muted-foreground mb-1">Version</p>
-          <p className="text-sm font-semibold">v1.0.0</p>
+          <p className="text-sm font-semibold">v2.0.0</p>
         </div>
       </div>
     </aside>

@@ -9,6 +9,7 @@ import { Task } from '../types';
 import { fetchTasksForDate, createTask, deleteTask, updateTask, mockCategories } from '../data/api';
 import { formatHours, toLocalDateString } from '../utils/helpers';
 import { toast } from 'sonner';
+import { useSelectedDate } from '../contexts/DateContext';
 
 type EditForm = {
   name: string;
@@ -19,6 +20,7 @@ type EditForm = {
 };
 
 export default function Tasks() {
+  const { selectedDate } = useSelectedDate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [showAddTask, setShowAddTask] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,7 +29,7 @@ export default function Tasks() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
 
-  const todayStr = toLocalDateString();
+  const todayStr = toLocalDateString(selectedDate);
 
   const loadData = async () => {
     try {
@@ -147,7 +149,7 @@ export default function Tasks() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold">All Tasks</h2>
-          <p className="text-sm text-muted-foreground mt-1">Manage and track all your tasks</p>
+          <p className="text-sm text-muted-foreground mt-1">Manage, edit, and review your task entries</p>
         </div>
         <Button
           onClick={() => setShowAddTask(true)}
@@ -158,7 +160,7 @@ export default function Tasks() {
         </Button>
       </div>
 
-      <Card className="p-4">
+      <Card className="p-4 bg-gradient-to-br from-card to-card/50 shadow-md hover:shadow-lg transition-shadow">
         <div className="flex items-center gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -174,7 +176,7 @@ export default function Tasks() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value as 'all' | 'complete' | 'incomplete')}
-              className="h-10 min-w-[140px] px-3 rounded-lg border border-border bg-background text-sm"
+              className="h-10 min-w-[150px] px-3 rounded-lg border border-border bg-background text-sm shadow-sm"
             >
               <option value="all">All Tasks</option>
               <option value="complete">Complete</option>
@@ -184,7 +186,7 @@ export default function Tasks() {
         </div>
       </Card>
 
-      <Card className="p-6">
+      <Card className="p-6 bg-gradient-to-br from-card to-card/50 shadow-md hover:shadow-lg transition-shadow">
         <div className="space-y-3">
           <div className="grid grid-cols-12 gap-4 pb-3 border-b border-border text-sm text-muted-foreground">
             <div className="col-span-3">Task Name</div>
@@ -209,11 +211,11 @@ export default function Tasks() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   whileHover={{ x: isEditing ? 0 : 4 }}
-                className={`
-                  p-4 rounded-lg border transition-all
+                  className={`
+                  p-4 rounded-xl border transition-all
                   ${
                     task.status === 'complete'
-                        ? 'bg-green-50 border-green-200 text-foreground dark:bg-green-900/30 dark:border-green-800'
+                        ? 'bg-green-50/95 border-green-200 text-foreground dark:bg-green-950/25 dark:border-green-800/70'
                         : 'bg-muted/30 border-border hover:border-border/80 hover:bg-muted/50'
                   }
                 `}
@@ -290,7 +292,7 @@ export default function Tasks() {
                             inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium
                             ${
                               task.status === 'complete'
-                                ? 'bg-green-100 text-green-700'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400'
                             }
                           `}
@@ -358,6 +360,7 @@ export default function Tasks() {
         onOpenChange={setShowAddTask}
         onAddTask={handleAddTask}
         categories={mockCategories}
+        initialDate={selectedDate}
       />
     </div>
   );

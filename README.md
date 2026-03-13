@@ -1,5 +1,5 @@
 
-# Timesheet Frontend (React + Vite)
+# Timesheet Frontend (v2.0.0)
 
 UI layer for the Personal Timesheet Tracker desktop app.
 
@@ -22,10 +22,12 @@ cd frontend
 npm install
 ```
 
-## Build UI (used by desktop app)
+## Build UI (Manual)
 ```bat
 npm run build
 ```
+
+The UI build is also automatically handled by the unified `backend/build.bat` script.
 
 ## Recommended Run Flow (Backend + UI Together)
 1. Build UI in this repo:

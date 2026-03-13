@@ -1,26 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useRef } from 'react';
-import { Moon, Sun, FileDown, Calendar, Bell } from 'lucide-react';
+import { Moon, Sun, FileDown, Calendar, Bell, ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatDate } from '../utils/helpers';
+import { useSelectedDate } from '../contexts/DateContext';
 import {
+  closeDesktopWindow,
   choosePdfSavePath,
   exportWeeklyReportPdf,
   exportWeeklyReportPdfToPath,
   fetchAllSettings,
+  minimizeDesktopWindow,
   onSettingsUpdated,
+  toggleDesktopFullscreen,
 } from '../data/api';
 import { toast } from 'sonner';
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
-  const today = new Date();
+  const { selectedDate, goToPreviousDay, goToNextDay } = useSelectedDate();
 
   const [dailyGoal, setDailyGoal] = useState(8);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [unreadCount, setUnreadCount] = useState(1);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const notificationRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -77,6 +82,58 @@ export function Header() {
     }
   };
 
+  const toggleFullscreen = async () => {
+    const desktopHandled = await toggleDesktopFullscreen();
+    if (desktopHandled) {
+      setIsFullscreen((prev) => !prev);
+      return;
+    }
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Ignore unsupported fullscreen API errors.
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    const handleF11Toggle = (event: KeyboardEvent) => {
+      if (event.key === 'F11') {
+        event.preventDefault();
+        toggleFullscreen();
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('keydown', handleF11Toggle);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('keydown', handleF11Toggle);
+    };
+  }, []);
+
+  const handleMinimize = async () => {
+    const ok = await minimizeDesktopWindow();
+    if (!ok) {
+      toast.info('Minimize is available in desktop EXE mode.');
+    }
+  };
+
+  const handleClose = async () => {
+    const ok = await closeDesktopWindow();
+    if (!ok) {
+      window.close();
+    }
+  };
+
   return (
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6">
       <div className="flex items-center gap-6">
@@ -84,9 +141,15 @@ export function Header() {
           <h1 className="text-lg font-semibold">Personal Timesheet Tracker</h1>
         </div>
         <div className="h-8 w-px bg-border" />
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Button variant="ghost" size="sm" className="w-7 h-7 p-0" onClick={goToPreviousDay}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
           <Calendar className="w-4 h-4" />
-          <span>{formatDate(today)}</span>
+          <span className="min-w-[130px] text-center">{formatDate(selectedDate)}</span>
+          <Button variant="ghost" size="sm" className="w-7 h-7 p-0" onClick={goToNextDay}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
@@ -103,6 +166,18 @@ export function Header() {
 
         <Button variant="outline" size="sm" onClick={toggleTheme} className="w-9 h-9 p-0 relative">
           {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+        </Button>
+
+        <Button variant="outline" size="sm" onClick={handleMinimize} className="w-9 h-9 p-0 relative" title="Minimize">
+          <Minimize2 className="w-4 h-4" />
+        </Button>
+
+        <Button variant="outline" size="sm" onClick={toggleFullscreen} className="w-9 h-9 p-0 relative" title="Fullscreen / Window (F11)">
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </Button>
+
+        <Button variant="outline" size="sm" onClick={handleClose} className="w-9 h-9 p-0 relative" title="Close">
+          <X className="w-4 h-4" />
         </Button>
 
         <div className="relative" ref={notificationRef}>
