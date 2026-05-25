@@ -3,6 +3,32 @@ import { Task } from '../types';
 const API_BASE = 'http://127.0.0.1:8000/api';
 const SETTINGS_UPDATED_EVENT = 'timesheet:settings-updated';
 
+// Per-process token fetched from /api/auth/token at boot. The backend enforces
+// this on POST/PUT/PATCH/DELETE so another browser tab on the same machine
+// can't blind-write to your timesheet. Read-only GETs don't need it.
+let sessionToken: string | null = null;
+let sessionTokenPromise: Promise<string | null> | null = null;
+
+async function loadSessionToken(): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_BASE}/auth/token`);
+    if (!response.ok) return null;
+    const data = (await response.json()) as { token?: string; auth_required?: boolean };
+    return data.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function ensureSessionToken(): Promise<string | null> {
+  if (sessionToken) return sessionToken;
+  if (!sessionTokenPromise) sessionTokenPromise = loadSessionToken();
+  sessionToken = await sessionTokenPromise;
+  return sessionToken;
+}
+
+void ensureSessionToken();
+
 declare global {
   interface Window {
     pywebview?: {
@@ -16,8 +42,18 @@ declare global {
   }
 }
 
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, options);
+  const method = (options?.method ?? 'GET').toUpperCase();
+  const headers = new Headers(options?.headers ?? {});
+
+  if (MUTATING_METHODS.has(method)) {
+    const token = await ensureSessionToken();
+    if (token) headers.set('X-Timesheet-Token', token);
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || `Request failed: ${response.status}`);
@@ -132,6 +168,57 @@ export const exportReportPdfForRangeToPath = async (filepath: string, startDate:
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filepath, start_date: startDate, end_date: endDate })
   });
+};
+
+export interface StreakInfo {
+  current_streak: number;
+  longest_streak: number;
+  daily_target: number;
+  scanned_from: string;
+  scanned_to: string;
+}
+
+export const fetchStreak = async (): Promise<StreakInfo> => {
+  return request<StreakInfo>('/stats/streak');
+};
+
+export interface SprintOverviewTask {
+  id: number;
+  task_name: string;
+  expected_hours: number;
+  hours: number;
+  block: string | null;
+}
+
+export interface SprintOverviewDay {
+  date: string;
+  day_number: number | null;
+  tasks: SprintOverviewTask[];
+  expected_hours: number;
+  worked_hours: number;
+  completion_pct: number;
+  complete: boolean;
+}
+
+export interface SprintOverview {
+  summary: {
+    total_days: number;
+    completed_days: number;
+    total_expected: number;
+    total_worked: number;
+    overall_pct: number;
+  };
+  days: SprintOverviewDay[];
+}
+
+export const fetchSprintOverview = async (): Promise<SprintOverview> => {
+  return request<SprintOverview>('/sprint/overview');
+};
+
+export const exportTasksCsv = async (): Promise<Blob> => {
+  const response = await fetch(`${API_BASE}/export/csv`);
+  if (!response.ok) throw new Error(`Export failed: ${response.status}`);
+  return response.blob();
 };
 
 export interface SprintImportResult {

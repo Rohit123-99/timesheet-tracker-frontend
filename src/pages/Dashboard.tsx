@@ -19,6 +19,7 @@ import {
   ListChecks,
   Save,
   X,
+  Flame,
 } from 'lucide-react';
 import { Task } from '../types';
 import {
@@ -29,6 +30,7 @@ import {
   updateTask,
   updateAllSettings,
   fetchWeeklyReport,
+  fetchStreak,
   mockCategories,
 } from '../data/api';
 import { formatHours, toLocalDateString } from '../utils/helpers';
@@ -53,6 +55,8 @@ export default function Dashboard() {
   const [goalInput, setGoalInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [weeklyAverage, setWeeklyAverage] = useState(0);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
 
@@ -61,16 +65,19 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [settings, dailyTasks, previousDayTasks, weeklyReport] = await Promise.all([
+      const [settings, dailyTasks, previousDayTasks, weeklyReport, streak] = await Promise.all([
         fetchAllSettings(),
         fetchTasksForDate(todayStr),
         fetchTasksForDate(yesterdayStr),
         fetchWeeklyReport(),
+        fetchStreak().catch(() => ({ current_streak: 0, longest_streak: 0 } as any)),
       ]);
       setDailyGoal(settings.target_hours);
       setTasks(dailyTasks);
       setYesterdayTasks(previousDayTasks);
       setWeeklyAverage(weeklyReport.summary?.daily_average ?? 0);
+      setCurrentStreak(streak.current_streak ?? 0);
+      setLongestStreak(streak.longest_streak ?? 0);
     } catch (e) {
       console.error('Failed to fetch data:', e);
       toast.error('Failed to load dashboard data');
@@ -212,7 +219,7 @@ export default function Dashboard() {
         <p className="text-sm text-muted-foreground mt-1">Track daily progress and today's execution</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <StatCard
           title="Total Hours Today"
           value={formatHours(totalWorked)}
@@ -233,6 +240,13 @@ export default function Dashboard() {
           icon={TrendingUp}
           gradient="from-purple-500 to-pink-500"
           description="Per day"
+        />
+        <StatCard
+          title="Goal Streak"
+          value={`${currentStreak} day${currentStreak === 1 ? '' : 's'}`}
+          icon={Flame}
+          gradient="from-orange-500 to-red-500"
+          description={longestStreak > 0 ? `Longest: ${longestStreak} days` : 'Hit your daily target to start'}
         />
       </div>
 
