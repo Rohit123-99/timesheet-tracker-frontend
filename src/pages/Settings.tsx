@@ -25,11 +25,14 @@ export default function Settings() {
   const [autoSave, setAutoSave] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Sprint import state
-  const [sprintMdPath, setSprintMdPath] = useState(
-    'C:\\Users\\Killestro\\Study Tracking\\SDET_Sprint_Tracker.md',
-  );
-  const [sprintStartDate, setSprintStartDate] = useState('2026-05-26');
+  // Sprint import state — defaults left blank so any user can paste their
+  // own tracker path. Start date defaults to tomorrow.
+  const [sprintMdPath, setSprintMdPath] = useState('');
+  const [sprintStartDate, setSprintStartDate] = useState(() => {
+    const t = new Date();
+    t.setDate(t.getDate() + 1);
+    return t.toISOString().slice(0, 10);
+  });
   const [sprintReplace, setSprintReplace] = useState(false);
   const [sprintImporting, setSprintImporting] = useState(false);
   const [sprintLastResult, setSprintLastResult] = useState<SprintImportResult | null>(null);
@@ -308,7 +311,7 @@ export default function Settings() {
               id="sprintMdPath"
               value={sprintMdPath}
               onChange={(e) => setSprintMdPath(e.target.value)}
-              placeholder="C:\\path\\to\\SDET_Sprint_Tracker.md"
+              placeholder="e.g. C:\\Users\\YourName\\Documents\\SDET_Sprint_Tracker.md"
               className="mt-1.5 font-mono text-xs"
             />
           </div>
