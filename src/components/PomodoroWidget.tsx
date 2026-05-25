@@ -159,10 +159,19 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
   // motion-wrapped layouts can otherwise re-anchor fixed children.
   if (typeof document === 'undefined') return null;
 
+  // pointer-events is set with inline style because this project's frozen
+  // Tailwind CSS contains `pointer-events-none` but NOT `pointer-events-auto`,
+  // so a parent's `pointer-events-none` would otherwise eat all clicks on the
+  // pomodoro button.
   return createPortal(
     <div
-      className="fixed bottom-4 right-4 z-[2147483646] pointer-events-none"
-      style={{ position: 'fixed', bottom: 16, right: 16 }}
+      style={{
+        position: 'fixed',
+        bottom: 16,
+        right: 16,
+        zIndex: 2147483646,
+        pointerEvents: 'none',
+      }}
     >
       <AnimatePresence mode="wait">
         {showCollapsed ? (
@@ -172,8 +181,9 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             onClick={() => setOpen(true)}
+            style={{ pointerEvents: 'auto' }}
             className={cn(
-              'pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-full shadow-lg border border-border bg-white/95 dark:bg-card/95 backdrop-blur transition-all hover:shadow-xl hover:scale-105',
+              'flex items-center gap-3 px-4 py-2.5 rounded-full shadow-lg border border-border bg-white/95 dark:bg-card/95 backdrop-blur transition-all hover:shadow-xl hover:scale-105 cursor-pointer',
             )}
             title="Open Pomodoro widget"
           >
@@ -206,7 +216,7 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="pointer-events-auto"
+            style={{ pointerEvents: 'auto' }}
           >
             <Card className="w-80 shadow-2xl border-border/60 overflow-hidden bg-white/95 dark:bg-card/95 backdrop-blur">
               <div className={cn('bg-gradient-to-r p-3 flex items-center justify-between text-white', meta.gradient)}>

@@ -27,8 +27,8 @@ export function TimerAlert({
           initial={{ opacity: 0, y: -50, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -50, scale: 0.9 }}
-          className="fixed top-4 right-4 z-[2147483647] w-96 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border-2 border-orange-400 dark:border-orange-500 overflow-hidden"
-          style={{ position: 'fixed', top: 16, right: 16 }}
+          className="w-96 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border-2 border-orange-400 dark:border-orange-500 overflow-hidden"
+          style={{ position: 'fixed', top: 16, right: 16, zIndex: 2147483647, pointerEvents: 'auto' }}
         >
           <div className="bg-gradient-to-r from-orange-500 to-red-500 p-3 flex items-center justify-between">
             <div className="flex items-center gap-2 text-white">

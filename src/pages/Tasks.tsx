@@ -312,16 +312,30 @@ export default function Tasks() {
         </div>
       </Card>
 
+      {/*
+        We use inline `gridTemplateColumns` everywhere instead of Tailwind
+        col-span-*. This project's frozen index.css only has col-span-2 and
+        col-span-4, so col-span-3 / col-span-1 / col-span-7 silently fall
+        through and columns end up auto-sized — which was hiding the
+        Stop button behind the Status chip.
+      */}
       <Card className="p-6 bg-gradient-to-br from-card to-card/50 shadow-md hover:shadow-lg transition-shadow">
         <div className="space-y-3">
-          <div className="grid grid-cols-12 gap-3 pb-3 border-b border-border text-sm text-muted-foreground">
-            <div className="col-span-3">Task Name</div>
-            <div className="col-span-1 text-center">Est.</div>
-            <div className="col-span-1 text-center">Actual</div>
-            <div className="col-span-3 text-center">Timer</div>
-            <div className="col-span-1 text-center">Status</div>
-            <div className="col-span-2">Notes</div>
-            <div className="col-span-1 text-center">Actions</div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 2.4fr) 70px 70px minmax(0, 1.8fr) 90px minmax(0, 1.4fr) 90px',
+              gap: '0.75rem',
+            }}
+            className="pb-3 border-b border-border text-sm text-muted-foreground"
+          >
+            <div>Task Name</div>
+            <div className="text-center">Est.</div>
+            <div className="text-center">Actual</div>
+            <div className="text-center">Timer</div>
+            <div className="text-center">Status</div>
+            <div>Notes</div>
+            <div className="text-center">Actions</div>
           </div>
 
           {filteredTasks.length === 0 ? (
@@ -347,8 +361,15 @@ export default function Tasks() {
                   }
                 `}
                 >
-                  <div className="grid grid-cols-12 gap-3 items-center">
-                    <div className="col-span-3 flex items-center gap-3 min-w-0">
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(0, 2.4fr) 70px 70px minmax(0, 1.8fr) 90px minmax(0, 1.4fr) 90px',
+                      gap: '0.75rem',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
                       <button
                         onClick={() => handleToggleStatus(task)}
                         className="focus:outline-none flex-shrink-0 transition-transform hover:scale-110 active:scale-95"
@@ -391,7 +412,7 @@ export default function Tasks() {
                       )}
                     </div>
 
-                    <div className="col-span-1 text-center">
+                    <div className="text-center">
                       {isEditing ? (
                         <Input
                           type="number"
@@ -407,7 +428,7 @@ export default function Tasks() {
                       )}
                     </div>
 
-                    <div className="col-span-1 text-center">
+                    <div className="text-center">
                       {isEditing ? (
                         <Input
                           type="number"
@@ -423,7 +444,7 @@ export default function Tasks() {
                       )}
                     </div>
 
-                    <div className="col-span-3 flex justify-center">
+                    <div className="flex justify-center">
                       {!isEditing && (
                         <TaskTimer
                           taskId={task.id}
@@ -435,7 +456,7 @@ export default function Tasks() {
                       )}
                     </div>
 
-                    <div className="col-span-1 text-center">
+                    <div className="text-center">
                       {isEditing ? (
                         <span className="text-xs text-muted-foreground">auto</span>
                       ) : (
@@ -454,7 +475,7 @@ export default function Tasks() {
                       )}
                     </div>
 
-                    <div className="col-span-2 min-w-0">
+                    <div className="min-w-0">
                       {isEditing ? (
                         <Input
                           value={editForm.notes}
@@ -475,7 +496,7 @@ export default function Tasks() {
                       )}
                     </div>
 
-                    <div className="col-span-1 flex items-center justify-center gap-1">
+                    <div className="flex items-center justify-center gap-1">
                       {isEditing ? (
                         <>
                           <Button

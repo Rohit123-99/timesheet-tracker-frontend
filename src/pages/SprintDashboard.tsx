@@ -35,15 +35,17 @@ const STAT_GRID_STYLE: React.CSSProperties = {
   gap: '1.25rem',
 };
 
-const DAY_CARD_GRID_STYLE: React.CSSProperties = {
+const DAY_ROW_GRID_STYLE: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-  gap: '1rem',
+  // [day info]  [block tiles, fixed-width clusters]  [hours + bar]
+  gridTemplateColumns: 'minmax(160px, 1.4fr) minmax(360px, 2.6fr) minmax(140px, 1fr)',
+  gap: '1.25rem',
+  alignItems: 'center',
 };
 
 const BLOCK_TILE_ROW_STYLE: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(4, 1fr)',
+  gridTemplateColumns: 'repeat(4, minmax(80px, 1fr))',
   gap: '0.5rem',
 };
 
@@ -111,7 +113,7 @@ function BlockTile({
           : `Block ${letter} — not imported`
       }
       className={cn(
-        'rounded-lg border px-2 py-2 flex flex-col items-center justify-center text-center transition-colors',
+        'rounded-md border px-2 py-1.5 flex items-center justify-between gap-1.5 transition-colors',
         meta.bg,
         meta.text,
         meta.border,
@@ -119,54 +121,60 @@ function BlockTile({
         empty && 'opacity-40',
       )}
     >
-      <div className="flex items-center gap-1.5">
-        <Icon className="w-3.5 h-3.5" />
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Icon className="w-3.5 h-3.5 flex-shrink-0" />
         <span className="text-xs font-bold leading-none">{letter}</span>
+        <span className="text-[10px] opacity-75 leading-none hidden sm:inline truncate">
+          {meta.label}
+        </span>
       </div>
-      <span className="text-[10px] leading-tight mt-1 opacity-90">
-        {task ? `${hours.toFixed(1)}/${expected}h` : '—'}
+      <span className="text-[10px] font-mono leading-none whitespace-nowrap">
+        {task ? `${hours.toFixed(1)}/${expected}` : '—'}
       </span>
     </div>
   );
 }
 
-function DayCard({ day }: { day: SprintOverviewDay }) {
+function DayRow({ day }: { day: SprintOverviewDay }) {
   return (
-    <Card
+    <div
+      style={DAY_ROW_GRID_STYLE}
       className={cn(
-        'p-4 transition-all hover:shadow-lg',
+        'p-3 rounded-xl border transition-colors',
         day.complete
           ? 'bg-emerald-50/70 dark:bg-emerald-950/15 border-emerald-200/70 dark:border-emerald-800/50'
-          : 'bg-card border-border',
+          : 'bg-muted/30 border-border hover:bg-muted/50',
       )}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div
-            className={cn(
-              'flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold',
-              day.complete
-                ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white'
-                : 'bg-gradient-to-br from-blue-500 to-purple-500 text-white',
-            )}
-          >
-            {day.day_number ?? '?'}
-          </div>
-          <div className="min-w-0">
-            <p className="font-semibold leading-tight">Day {day.day_number ?? '?'}</p>
-            <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{day.date}</p>
-          </div>
-        </div>
-        <div className="flex-shrink-0">
-          {day.complete ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-          ) : (
-            <Circle className="w-5 h-5 text-muted-foreground/60" />
+      {/* Day badge + label + completion icon */}
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div
+          className={cn(
+            'flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold',
+            day.complete
+              ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white'
+              : 'bg-gradient-to-br from-blue-500 to-purple-500 text-white',
           )}
+        >
+          {day.day_number ?? '?'}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <p className="font-semibold leading-tight">Day {day.day_number ?? '?'}</p>
+            {day.complete ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            ) : (
+              <Circle className="w-4 h-4 text-muted-foreground/60" />
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 font-mono">
+            {day.date}
+          </p>
         </div>
       </div>
 
-      <div style={BLOCK_TILE_ROW_STYLE} className="mb-3">
+      {/* 4 block tiles in a fixed-width row */}
+      <div style={BLOCK_TILE_ROW_STYLE}>
         {(['A', 'B', 'C', 'D'] as const).map((letter) => (
           <BlockTile
             key={letter}
@@ -176,12 +184,13 @@ function DayCard({ day }: { day: SprintOverviewDay }) {
         ))}
       </div>
 
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">
-            {day.worked_hours.toFixed(1)} / {day.expected_hours.toFixed(1)}h
+      {/* Hours total + progress bar */}
+      <div className="flex flex-col items-end gap-1">
+        <div className="flex items-baseline gap-2 text-xs">
+          <span className="text-muted-foreground font-mono">
+            {day.worked_hours.toFixed(1)}/{day.expected_hours.toFixed(1)}h
           </span>
-          <span className="font-semibold">{day.completion_pct.toFixed(0)}%</span>
+          <span className="font-bold text-sm">{day.completion_pct.toFixed(0)}%</span>
         </div>
         <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
           <div
@@ -195,7 +204,7 @@ function DayCard({ day }: { day: SprintOverviewDay }) {
           />
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -308,18 +317,20 @@ export default function SprintDashboard() {
           </div>
         </div>
 
-        <div style={DAY_CARD_GRID_STYLE}>
-          {days.map((day, i) => (
-            <motion.div
-              key={day.date}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: Math.min(i * 0.03, 0.4) }}
-            >
-              <DayCard day={day} />
-            </motion.div>
-          ))}
-        </div>
+        <Card className="p-4 bg-gradient-to-br from-card to-card/50 shadow-md border-border/60">
+          <div className="flex flex-col gap-2">
+            {days.map((day, i) => (
+              <motion.div
+                key={day.date}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.025, 0.35) }}
+              >
+                <DayRow day={day} />
+              </motion.div>
+            ))}
+          </div>
+        </Card>
       </div>
     </div>
   );
