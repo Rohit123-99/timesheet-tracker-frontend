@@ -37,15 +37,15 @@ const STAT_GRID_STYLE: React.CSSProperties = {
 
 const DAY_ROW_GRID_STYLE: React.CSSProperties = {
   display: 'grid',
-  // [day info]  [block tiles, fixed-width clusters]  [hours + bar]
-  gridTemplateColumns: 'minmax(160px, 1.4fr) minmax(360px, 2.6fr) minmax(140px, 1fr)',
-  gap: '1.25rem',
+  // [day info — fixed]  [block tiles — flexible]  [hours+bar — fixed]
+  gridTemplateColumns: '180px minmax(0, 1fr) 200px',
+  gap: '1rem',
   alignItems: 'center',
 };
 
 const BLOCK_TILE_ROW_STYLE: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(4, minmax(80px, 1fr))',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
   gap: '0.5rem',
 };
 
@@ -113,22 +113,31 @@ function BlockTile({
           : `Block ${letter} — not imported`
       }
       className={cn(
-        'rounded-md border px-2 py-1.5 flex items-center justify-between gap-1.5 transition-colors',
+        'rounded-md border transition-colors',
         meta.bg,
         meta.text,
         meta.border,
         done && meta.doneRing,
         empty && 'opacity-40',
       )}
+      style={{
+        padding: '6px 10px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        minWidth: 0,
+      }}
     >
-      <div className="flex items-center gap-1.5 min-w-0">
-        <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-        <span className="text-xs font-bold leading-none">{letter}</span>
-        <span className="text-[10px] opacity-75 leading-none hidden sm:inline truncate">
-          {meta.label}
-        </span>
-      </div>
-      <span className="text-[10px] font-mono leading-none whitespace-nowrap">
+      <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+      <span className="text-xs font-bold leading-none">{letter}</span>
+      <span className="text-[11px] opacity-80 leading-none truncate">
+        {meta.label}
+      </span>
+      <span
+        className="text-[11px] font-mono leading-none whitespace-nowrap ml-auto"
+        style={{ paddingLeft: 6 }}
+      >
         {task ? `${hours.toFixed(1)}/${expected}` : '—'}
       </span>
     </div>
@@ -185,22 +194,32 @@ function DayRow({ day }: { day: SprintOverviewDay }) {
       </div>
 
       {/* Hours total + progress bar */}
-      <div className="flex flex-col items-end gap-1">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
         <div className="flex items-baseline gap-2 text-xs">
           <span className="text-muted-foreground font-mono">
             {day.worked_hours.toFixed(1)}/{day.expected_hours.toFixed(1)}h
           </span>
           <span className="font-bold text-sm">{day.completion_pct.toFixed(0)}%</span>
         </div>
-        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+        <div
+          className="rounded-full overflow-hidden"
+          style={{
+            height: 6,
+            width: '100%',
+            background: 'rgba(120, 120, 130, 0.25)',
+          }}
+        >
           <div
             className={cn(
-              'h-full transition-all duration-500',
+              'transition-all duration-500',
               day.complete
                 ? 'bg-gradient-to-r from-emerald-400 to-teal-500'
                 : 'bg-gradient-to-r from-blue-400 to-purple-500',
             )}
-            style={{ width: `${Math.min(100, day.completion_pct)}%` }}
+            style={{
+              width: `${Math.min(100, day.completion_pct)}%`,
+              height: '100%',
+            }}
           />
         </div>
       </div>
