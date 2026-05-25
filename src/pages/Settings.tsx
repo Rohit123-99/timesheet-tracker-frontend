@@ -5,10 +5,11 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
 import { Separator } from '../components/ui/separator';
-import { User, Bell, Database, Palette, Save, FileDown, CalendarPlus, FileUp } from 'lucide-react';
+import { User, Bell, Database, Palette, Save, FileDown, CalendarPlus, FileUp, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   exportAllData,
+  exportTasksCsv,
   fetchAllSettings,
   updateAllSettings,
   importSprintPlan,
@@ -139,6 +140,23 @@ export default function Settings() {
     }
   };
 
+  const handleExportTasksCsv = async () => {
+    try {
+      const blob = await exportTasksCsv();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Timesheet_Tasks_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Tasks CSV downloaded');
+    } catch (err) {
+      toast.error('Failed to export CSV');
+    }
+  };
+
   if (isLoading) return <div className="p-6">Loading settings...</div>;
 
   return (
@@ -237,10 +255,14 @@ export default function Settings() {
             <Switch checked={autoSave} onCheckedChange={setAutoSave} />
           </div>
           <Separator />
-          <div>
+          <div className="flex flex-wrap gap-3">
             <Button variant="outline" className="gap-2" onClick={handleExportAllData}>
               <FileDown className="w-4 h-4" />
-              Export All Data
+              Export All Data (JSON)
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={handleExportTasksCsv}>
+              <FileSpreadsheet className="w-4 h-4" />
+              Export Tasks (CSV)
             </Button>
           </div>
         </div>
