@@ -4,12 +4,36 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { AddTaskModal } from '../components/AddTaskModal';
-import { Plus, CheckCircle2, Circle, Search, Filter, Trash2, Edit2, Save, X } from 'lucide-react';
+import { TaskTimer } from '../components/TaskTimer';
+import { TimerAlert } from '../components/TimerAlert';
+import {
+  Plus,
+  CheckCircle2,
+  Circle,
+  Search,
+  Filter,
+  Trash2,
+  Edit2,
+  Save,
+  X,
+  Bell,
+  BellOff,
+} from 'lucide-react';
 import { Task } from '../types';
-import { fetchTasksForDate, createTask, deleteTask, updateTask, mockCategories } from '../data/api';
+import {
+  fetchTasksForDate,
+  createTask,
+  deleteTask,
+  updateTask,
+  mockCategories,
+} from '../data/api';
 import { formatHours, toLocalDateString } from '../utils/helpers';
 import { toast } from 'sonner';
 import { useSelectedDate } from '../contexts/DateContext';
+import {
+  requestNotificationPermission,
+  showTaskTimeNotification,
+} from '../utils/notifications';
 
 type EditForm = {
   name: string;
@@ -18,6 +42,12 @@ type EditForm = {
   category: string;
   notes: string;
 };
+
+interface InAppAlert {
+  show: boolean;
+  taskName: string;
+  estimatedHours: number;
+}
 
 export default function Tasks() {
   const { selectedDate } = useSelectedDate();
@@ -28,6 +58,12 @@ export default function Tasks() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [alert, setAlert] = useState<InAppAlert>({
+    show: false,
+    taskName: '',
+    estimatedHours: 0,
+  });
 
   const todayStr = toLocalDateString(selectedDate);
 
@@ -47,11 +83,30 @@ export default function Tasks() {
     loadData();
   }, [todayStr]);
 
+  // Detect current notification permission on mount (without prompting)
+  useEffect(() => {
+    if (typeof Notification !== 'undefined') {
+      setNotificationsEnabled(Notification.permission === 'granted');
+    }
+  }, []);
+
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterStatus === 'all' || task.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
+
+  const toggleNotifications = async () => {
+    if (notificationsEnabled) {
+      setNotificationsEnabled(false);
+      toast.message('In-app alerts still active; browser notifications muted');
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    setNotificationsEnabled(granted);
+    if (granted) toast.success('Notifications enabled');
+    else toast.error('Browser notifications blocked');
+  };
 
   const handleAddTask = async (taskData: Omit<Task, 'id' | 'status'>) => {
     try {
@@ -91,6 +146,46 @@ export default function Tasks() {
     } catch {
       toast.error('Failed to update task');
     }
+  };
+
+  /** Called when a TaskTimer is stopped — adds elapsed hours to the task. */
+  const handleTimerStopped = async (taskId: string, elapsedHours: number) => {
+    if (elapsedHours <= 0) return;
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const updated = +(task.actualHours + elapsedHours).toFixed(2);
+    try {
+      await updateTask(taskId, {
+        name: task.name,
+        estimatedHours: task.estimatedHours,
+        actualHours: updated,
+        notes: task.notes,
+        date: task.date,
+        category: task.category,
+      });
+      toast.success(`Logged ${formatHours(elapsedHours)} to "${task.name}"`);
+      await loadData();
+    } catch {
+      toast.error('Failed to save timer hours');
+    }
+  };
+
+  /** Called by useTaskTimer when a task crosses its estimated time. */
+  const handleTimerEstimateReached = (taskId: string, taskName: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    setAlert({ show: true, taskName, estimatedHours: task.estimatedHours });
+    if (notificationsEnabled) {
+      showTaskTimeNotification(taskName, task.estimatedHours);
+    }
+  };
+
+  const handleSnoozeAlert = () => {
+    setAlert((prev) => ({ ...prev, show: false }));
+    setTimeout(
+      () => setAlert((prev) => ({ ...prev, show: true })),
+      5 * 60 * 1000,
+    );
   };
 
   const startEditing = (task: Task) => {
@@ -146,18 +241,49 @@ export default function Tasks() {
 
   return (
     <div className="p-6 space-y-6">
+      <TimerAlert
+        show={alert.show}
+        taskName={alert.taskName}
+        estimatedHours={alert.estimatedHours}
+        onDismiss={() => setAlert((prev) => ({ ...prev, show: false }))}
+        onSnooze={handleSnoozeAlert}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold">All Tasks</h2>
-          <p className="text-sm text-muted-foreground mt-1">Manage, edit, and review your task entries</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage tasks, track time with built-in timers
+          </p>
         </div>
-        <Button
-          onClick={() => setShowAddTask(true)}
-          className="gap-2 text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-        >
-          <Plus className="w-4 h-4" />
-          Add Task
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={toggleNotifications}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            title={notificationsEnabled ? 'Notifications enabled' : 'Enable notifications'}
+          >
+            {notificationsEnabled ? (
+              <>
+                <Bell className="w-4 h-4 text-green-600" />
+                <span className="text-xs">Notifications on</span>
+              </>
+            ) : (
+              <>
+                <BellOff className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs">Notifications off</span>
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={() => setShowAddTask(true)}
+            className="gap-2 text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+          >
+            <Plus className="w-4 h-4" />
+            Add Task
+          </Button>
+        </div>
       </div>
 
       <Card className="p-4 bg-gradient-to-br from-card to-card/50 shadow-md hover:shadow-lg transition-shadow">
@@ -188,11 +314,12 @@ export default function Tasks() {
 
       <Card className="p-6 bg-gradient-to-br from-card to-card/50 shadow-md hover:shadow-lg transition-shadow">
         <div className="space-y-3">
-          <div className="grid grid-cols-12 gap-4 pb-3 border-b border-border text-sm text-muted-foreground">
+          <div className="grid grid-cols-12 gap-3 pb-3 border-b border-border text-sm text-muted-foreground">
             <div className="col-span-3">Task Name</div>
-            <div className="col-span-2 text-center">Estimated</div>
-            <div className="col-span-2 text-center">Actual</div>
-            <div className="col-span-2 text-center">Status</div>
+            <div className="col-span-1 text-center">Est.</div>
+            <div className="col-span-1 text-center">Actual</div>
+            <div className="col-span-3 text-center">Timer</div>
+            <div className="col-span-1 text-center">Status</div>
             <div className="col-span-2">Notes</div>
             <div className="col-span-1 text-center">Actions</div>
           </div>
@@ -215,16 +342,17 @@ export default function Tasks() {
                   p-4 rounded-xl border transition-all
                   ${
                     task.status === 'complete'
-                        ? 'bg-green-50/95 border-green-200 text-foreground dark:bg-green-950/25 dark:border-green-800/70'
-                        : 'bg-muted/30 border-border hover:border-border/80 hover:bg-muted/50'
+                      ? 'bg-green-50/95 border-green-200 text-foreground dark:bg-green-950/25 dark:border-green-800/70'
+                      : 'bg-muted/30 border-border hover:border-border/80 hover:bg-muted/50'
                   }
                 `}
-              >
-                  <div className="grid grid-cols-12 gap-4 items-center">
+                >
+                  <div className="grid grid-cols-12 gap-3 items-center">
                     <div className="col-span-3 flex items-center gap-3 min-w-0">
                       <button
                         onClick={() => handleToggleStatus(task)}
                         className="focus:outline-none flex-shrink-0 transition-transform hover:scale-110 active:scale-95"
+                        title="Toggle complete"
                       >
                         {task.status === 'complete' ? (
                           <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -248,48 +376,72 @@ export default function Tasks() {
                           />
                         </div>
                       ) : (
-                        <div>
-                            <p className="font-medium">{task.name}</p>
-                            <p className={`text-xs ${task.status === 'complete' ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'}`}>{task.category}</p>
-                          </div>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate" title={task.name}>{task.name}</p>
+                          <p
+                            className={`text-xs truncate ${
+                              task.status === 'complete'
+                                ? 'text-green-700 dark:text-green-400'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {task.category}
+                          </p>
+                        </div>
                       )}
                     </div>
 
-                    <div className="col-span-2 text-center">
+                    <div className="col-span-1 text-center">
                       {isEditing ? (
                         <Input
                           type="number"
                           step="0.25"
                           min="0"
                           value={editForm.estimatedHours}
-                          onChange={(e) => setEditForm({ ...editForm, estimatedHours: e.target.value })}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, estimatedHours: e.target.value })
+                          }
                         />
                       ) : (
                         <p className="text-sm">{formatHours(task.estimatedHours)}</p>
                       )}
                     </div>
 
-                    <div className="col-span-2 text-center">
+                    <div className="col-span-1 text-center">
                       {isEditing ? (
                         <Input
                           type="number"
                           step="0.25"
                           min="0"
                           value={editForm.actualHours}
-                          onChange={(e) => setEditForm({ ...editForm, actualHours: e.target.value })}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, actualHours: e.target.value })
+                          }
                         />
                       ) : (
-                        <p className="text-sm">{formatHours(task.actualHours)}</p>
+                        <p className="text-sm font-medium">{formatHours(task.actualHours)}</p>
                       )}
                     </div>
 
-                    <div className="col-span-2 text-center">
+                    <div className="col-span-3 flex justify-center">
+                      {!isEditing && (
+                        <TaskTimer
+                          taskId={task.id}
+                          taskName={task.name}
+                          estimatedHours={task.estimatedHours}
+                          onTimeUpdate={handleTimerStopped}
+                          onNotification={handleTimerEstimateReached}
+                        />
+                      )}
+                    </div>
+
+                    <div className="col-span-1 text-center">
                       {isEditing ? (
-                        <span className="text-xs text-muted-foreground">Will auto-update after save</span>
+                        <span className="text-xs text-muted-foreground">auto</span>
                       ) : (
                         <span
                           className={`
-                            inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium
+                            inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium
                             ${
                               task.status === 'complete'
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
@@ -297,7 +449,7 @@ export default function Tasks() {
                             }
                           `}
                         >
-                          {task.status === 'complete' ? 'Complete' : 'Incomplete'}
+                          {task.status === 'complete' ? 'Done' : 'Open'}
                         </span>
                       )}
                     </div>
@@ -310,7 +462,14 @@ export default function Tasks() {
                           placeholder="Notes"
                         />
                       ) : (
-                        <p className={`text-sm truncate ${task.status === 'complete' ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'}`} title={task.notes}>
+                        <p
+                          className={`text-sm truncate ${
+                            task.status === 'complete'
+                              ? 'text-green-700 dark:text-green-400'
+                              : 'text-muted-foreground'
+                          }`}
+                          title={task.notes}
+                        >
                           {task.notes || '-'}
                         </p>
                       )}
