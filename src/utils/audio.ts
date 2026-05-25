@@ -55,23 +55,42 @@ function playSequence(notes: BeepSpec[]): void {
   }
 }
 
-/** End-of-focus alarm: three rising tones (A5 → A5 → E6). ~1 second total. */
+/**
+ * End-of-phase alarm — a 3-tone chime repeated 3 times with pauses between.
+ * ~6 seconds total. Long enough to grab attention even if the user has
+ * earbuds out, but not so long as to be obnoxious.
+ */
 export function playPhaseAlarm(): void {
+  const cycle = (offset: number): BeepSpec[] => [
+    { freq: 880,  start: offset + 0.0,  duration: 0.28 },
+    { freq: 880,  start: offset + 0.38, duration: 0.28 },
+    { freq: 1318, start: offset + 0.76, duration: 0.42, volume: 0.55 },
+  ];
   playSequence([
-    { freq: 880,  start: 0.0,  duration: 0.22 },
-    { freq: 880,  start: 0.30, duration: 0.22 },
-    { freq: 1318, start: 0.60, duration: 0.35, volume: 0.5 },
+    ...cycle(0.0),     // chime 1 (0.0 – 1.2s)
+    ...cycle(1.7),     // chime 2 (1.7 – 2.9s)
+    ...cycle(3.4),     // chime 3 (3.4 – 4.6s)
+    // Final flourish to mark the end
+    { freq: 1318, start: 5.0,  duration: 0.20 },
+    { freq: 1568, start: 5.25, duration: 0.20 },
+    { freq: 1976, start: 5.50, duration: 0.60, volume: 0.6 },
   ]);
 }
 
-/** Louder, more attention-grabbing alarm (used optionally for long breaks). */
+/** Longer / more festive alarm used at the end of a long break. ~8 seconds. */
 export function playLongAlarm(): void {
+  const cycle = (offset: number): BeepSpec[] => [
+    { freq: 880,  start: offset + 0.0,  duration: 0.20 },
+    { freq: 1175, start: offset + 0.25, duration: 0.20 },
+    { freq: 1568, start: offset + 0.50, duration: 0.20 },
+    { freq: 1318, start: offset + 0.85, duration: 0.20 },
+    { freq: 1568, start: offset + 1.10, duration: 0.40, volume: 0.55 },
+  ];
   playSequence([
-    { freq: 880,  start: 0.0,  duration: 0.18 },
-    { freq: 1175, start: 0.25, duration: 0.18 },
-    { freq: 1568, start: 0.50, duration: 0.18 },
-    { freq: 1318, start: 0.85, duration: 0.18 },
-    { freq: 1568, start: 1.10, duration: 0.40, volume: 0.5 },
+    ...cycle(0.0),
+    ...cycle(2.0),
+    ...cycle(4.0),
+    { freq: 1976, start: 6.2, duration: 0.80, volume: 0.6 },
   ]);
 }
 

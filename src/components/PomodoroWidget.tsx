@@ -22,7 +22,7 @@ import {
   usePomodoro,
   type PomodoroPhase,
 } from '../hooks/usePomodoro';
-import { fetchTasksForDate, updateTask } from '../data/api';
+import { fetchTasksForDate, updateTask, showDesktopNotification } from '../data/api';
 import type { Task as ApiTask } from '../types';
 import {
   showStickyPhaseNotification,
@@ -147,25 +147,33 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
       const ended = PHASE_META[endedPhase].label;
       const next = PHASE_META[nextPhase].label;
 
-      // 1. Audio alarm — louder version when a long break ends
+      const title = `${ended} complete — time for ${next}`;
+      const body =
+        endedPhase === 'focus'
+          ? 'Step away from the screen for a bit.'
+          : 'Break over. Ready for another focus session?';
+
+      // 1. Audio alarm — louder/longer version when a long break ends
       if (alarmOnRef.current) {
         if (endedPhase === 'long_break') playLongAlarm();
         else playPhaseAlarm();
       }
 
-      // 2. Sticky OS notification — user must dismiss
-      showStickyPhaseNotification(
-        `${ended} complete — time for ${next}`,
-        endedPhase === 'focus'
-          ? `Step away from the screen for a bit.`
-          : `Break over. Ready for another focus session?`,
-      );
+      // 2. Native Windows toast (pops up on top of any other app) — this is
+      //    what reaches the user when the timesheet window is in the
+      //    background. Plays Windows' looping alarm sound and stays until
+      //    dismissed.
+      void showDesktopNotification(title, body);
 
-      // 3. Auto-expand the widget so the new phase + remaining time are
+      // 3. Browser Notification API as backup (in case running in a normal
+      //    browser / dev mode without pywebview)
+      showStickyPhaseNotification(title, body);
+
+      // 4. Auto-expand the widget so the new phase + remaining time are
       //    visible without clicking
       setOpen(true);
 
-      // 4. In-app toast as a backup if notifications are blocked
+      // 5. In-app toast as a final fallback
       toast(
         endedPhase === 'focus' ? `Focus done — ${next} starting` : `${next} starting now`,
         { duration: 6000 },
@@ -176,7 +184,11 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
 
   const handleTestAlarm = useCallback(() => {
     playPhaseAlarm();
-    toast.success('Alarm test — you should have heard 3 beeps');
+    void showDesktopNotification(
+      'Pomodoro test alarm',
+      'This is what the end-of-phase alert looks like. You should also hear ~6 seconds of beeps.',
+    );
+    toast.success('Test alarm fired — listen for ~6 seconds of beeps and watch for the Windows toast');
   }, []);
 
   const {

@@ -47,6 +47,7 @@ declare global {
         minimize_window?: () => Promise<boolean> | boolean;
         toggle_fullscreen_window?: () => Promise<boolean> | boolean;
         close_window?: () => Promise<boolean> | boolean;
+        show_notification?: (title: string, body: string) => Promise<boolean> | boolean;
       };
     };
   }
@@ -296,6 +297,27 @@ export const closeDesktopWindow = async (): Promise<boolean> => {
   const fn = window.pywebview?.api?.close_window;
   if (!fn) return false;
   return Boolean(await fn());
+};
+
+/**
+ * Show a native Windows toast notification via pywebview's JS bridge. This
+ * pops up in the Action Center on top of whatever app the user is currently
+ * focused on — so the Pomodoro phase-end alarm reaches the user even when
+ * the timesheet window is in the background.
+ *
+ * Returns false in dev mode (when not running inside pywebview).
+ */
+export const showDesktopNotification = async (
+  title: string,
+  body: string,
+): Promise<boolean> => {
+  const fn = window.pywebview?.api?.show_notification;
+  if (!fn) return false;
+  try {
+    return Boolean(await fn(title, body));
+  } catch {
+    return false;
+  }
 };
 
 export const notifySettingsUpdated = (): void => {
