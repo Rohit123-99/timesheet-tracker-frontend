@@ -6,6 +6,7 @@ import {
   BarChart3,
   FileText,
   Settings,
+  Flag,
   LucideIcon,
 } from 'lucide-react';
 
@@ -18,6 +19,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/tasks', label: 'Tasks', icon: ListChecks },
+  { path: '/sprint', label: 'Sprint', icon: Flag },
   { path: '/analytics', label: 'Weekly Analytics', icon: BarChart3 },
   { path: '/reports', label: 'Reports', icon: FileText },
   { path: '/settings', label: 'Settings', icon: Settings },

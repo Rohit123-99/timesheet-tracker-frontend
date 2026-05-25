@@ -5,6 +5,7 @@ import Tasks from './pages/Tasks';
 import WeeklyAnalytics from './pages/WeeklyAnalytics';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import SprintDashboard from './pages/SprintDashboard';
 
 export const router = createHashRouter([
   {
@@ -13,6 +14,7 @@ export const router = createHashRouter([
     children: [
       { index: true, Component: Dashboard },
       { path: 'tasks', Component: Tasks },
+      { path: 'sprint', Component: SprintDashboard },
       { path: 'analytics', Component: WeeklyAnalytics },
       { path: 'reports', Component: Reports },
       { path: 'settings', Component: Settings },
