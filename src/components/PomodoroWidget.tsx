@@ -216,15 +216,25 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            style={{ pointerEvents: 'auto' }}
+            style={{ pointerEvents: 'auto', width: 360 }}
           >
-            <Card className="w-80 shadow-2xl border-border/60 overflow-hidden bg-white/95 dark:bg-card/95 backdrop-blur">
-              <div className={cn('bg-gradient-to-r p-3 flex items-center justify-between text-white', meta.gradient)}>
-                <div className="flex items-center gap-2">
+            <Card
+              className="shadow-2xl border-border/60 overflow-hidden bg-white/98 dark:bg-card/98 backdrop-blur"
+              style={{ maxHeight: 'calc(100vh - 32px)', overflowY: 'auto' }}
+            >
+              {/* Gradient header */}
+              <div
+                className={cn(
+                  'bg-gradient-to-r flex items-center justify-between text-white',
+                  meta.gradient,
+                )}
+                style={{ padding: '14px 16px' }}
+              >
+                <div className="flex items-center gap-2.5">
                   <Icon className="w-5 h-5" />
                   <div>
-                    <p className="font-semibold leading-none">{meta.label}</p>
-                    <p className="text-xs opacity-90 mt-1">
+                    <p className="font-semibold leading-tight">{meta.label}</p>
+                    <p className="text-xs opacity-90 leading-tight mt-0.5">
                       Cycle {cyclesCompleted + (phase === 'focus' ? 1 : 0)}
                     </p>
                   </div>
@@ -238,59 +248,103 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
                 </button>
               </div>
 
-              <div className="p-5 space-y-4">
+              {/* Body */}
+              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Timer + progress */}
                 <div className="text-center">
-                  <p className="font-mono text-5xl font-semibold tracking-tight">
+                  <p
+                    className="font-mono font-semibold tracking-tight tabular-nums"
+                    style={{ fontSize: 56, lineHeight: 1 }}
+                  >
                     {formatMmSs(remainingMs)}
                   </p>
-                  <div className="mt-3 h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="mt-3 w-full bg-muted rounded-full overflow-hidden"
+                    style={{ height: 6 }}
+                  >
                     <div
-                      className={cn(
-                        'h-full bg-gradient-to-r transition-[width] duration-500',
-                        meta.gradient,
-                      )}
-                      style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
+                      className={cn('h-full bg-gradient-to-r transition-[width] duration-500', meta.gradient)}
+                      style={{ width: `${Math.min(100, Math.max(0, progressPct))}%`, height: '100%' }}
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center gap-2">
-                  {isRunning ? (
-                    <Button onClick={pause} variant="outline" className="gap-2">
-                      <Pause className="w-4 h-4" /> Pause
-                    </Button>
-                  ) : phase === 'idle' ? (
-                    <Button
-                      onClick={startFocus}
-                      className={cn('gap-2 text-white bg-gradient-to-r', meta.gradient)}
-                    >
-                      <Play className="w-4 h-4" /> Start focus
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={resume}
-                      className={cn('gap-2 text-white bg-gradient-to-r', meta.gradient)}
-                    >
-                      <Play className="w-4 h-4" /> Resume
-                    </Button>
-                  )}
-                  <Button onClick={skip} variant="outline" size="icon" title="Skip phase">
-                    <SkipForward className="w-4 h-4" />
+                {/* Primary action: full-width button */}
+                {isRunning ? (
+                  <Button
+                    onClick={pause}
+                    variant="outline"
+                    style={{ width: '100%', height: 44 }}
+                    className="gap-2 font-semibold"
+                  >
+                    <Pause className="w-4 h-4" /> Pause
                   </Button>
-                  <Button onClick={reset} variant="outline" size="icon" title="Reset cycle count">
-                    <RotateCcw className="w-4 h-4" />
+                ) : phase === 'idle' ? (
+                  <Button
+                    onClick={startFocus}
+                    style={{ width: '100%', height: 44 }}
+                    className={cn(
+                      'gap-2 text-white font-semibold bg-gradient-to-r shadow-md',
+                      meta.gradient,
+                    )}
+                  >
+                    <Play className="w-4 h-4" /> Start focus
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={resume}
+                    style={{ width: '100%', height: 44 }}
+                    className={cn(
+                      'gap-2 text-white font-semibold bg-gradient-to-r shadow-md',
+                      meta.gradient,
+                    )}
+                  >
+                    <Play className="w-4 h-4" /> Resume
+                  </Button>
+                )}
+
+                {/* Secondary actions: two equal-width text buttons */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 8,
+                  }}
+                >
+                  <Button
+                    onClick={skip}
+                    variant="outline"
+                    className="gap-2"
+                    title="End current phase early and roll to next"
+                  >
+                    <SkipForward className="w-3.5 h-3.5" />
+                    <span className="text-xs">Skip phase</span>
+                  </Button>
+                  <Button
+                    onClick={reset}
+                    variant="outline"
+                    className="gap-2"
+                    title="Stop and reset cycle count"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span className="text-xs">Reset</span>
                   </Button>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground" htmlFor="pomodoro-task-link">
+                {/* Task linker */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label
+                    className="text-xs text-muted-foreground font-medium"
+                    htmlFor="pomodoro-task-link"
+                  >
                     Log focus minutes to task
                   </label>
                   <select
                     id="pomodoro-task-link"
                     value={linkedTaskId ?? ''}
                     onChange={(e) => setLinkedTaskId(e.target.value || null)}
-                    className="w-full h-9 px-2 rounded-md border border-border bg-background text-sm"
+                    className="rounded-md border border-border bg-background text-sm"
+                    style={{ width: '100%', height: 36, padding: '0 8px' }}
                   >
                     <option value="">— No task (just timer)</option>
                     {todayTasks.length === 0 && (
@@ -303,13 +357,19 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
                     ))}
                   </select>
                   <p className="text-[11px] text-muted-foreground leading-snug">
-                    When a focus session ends, its minutes are added to this task automatically.
+                    Focus minutes are added to this task automatically when the session ends.
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border/60 pt-3">
-                  <span>25 / 5 / 15 (long every 4)</span>
-                  <span>{cyclesCompleted} cycles done</span>
+                {/* Footer info */}
+                <div
+                  className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/60"
+                  style={{ paddingTop: 12 }}
+                >
+                  <span>25m focus · 5m / 15m breaks</span>
+                  <span>
+                    {cyclesCompleted} {cyclesCompleted === 1 ? 'cycle' : 'cycles'} done
+                  </span>
                 </div>
               </div>
             </Card>
