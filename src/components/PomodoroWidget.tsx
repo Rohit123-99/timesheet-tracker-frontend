@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Brain,
@@ -152,8 +153,17 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
   const Icon = meta.icon;
   const showCollapsed = !open;
 
-  return (
-    <div className="fixed bottom-4 right-4 z-40 pointer-events-none">
+  // Render via portal so this widget is mounted directly under <body> — no
+  // ancestor `transform` / `filter` / `contain: paint` can break its
+  // `position: fixed` anchoring. Important inside pywebview where stacked
+  // motion-wrapped layouts can otherwise re-anchor fixed children.
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      className="fixed bottom-4 right-4 z-[2147483646] pointer-events-none"
+      style={{ position: 'fixed', bottom: 16, right: 16 }}
+    >
       <AnimatePresence mode="wait">
         {showCollapsed ? (
           <motion.button
@@ -296,6 +306,7 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div>,
+    document.body,
   );
 }

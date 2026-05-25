@@ -1,6 +1,16 @@
 import { Task } from '../types';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+// Same-origin in production (UI served by FastAPI). For Vite dev (`npm run dev`
+// at :3000 or :5173), fall back to the absolute backend URL.
+const API_BASE = (() => {
+  if (typeof window !== 'undefined') {
+    const port = window.location.port;
+    const isViteDev = port === '3000' || port === '5173';
+    if (isViteDev) return 'http://127.0.0.1:8000/api';
+  }
+  return '/api';
+})();
+
 const SETTINGS_UPDATED_EVENT = 'timesheet:settings-updated';
 
 // Per-process token fetched from /api/auth/token at boot. The backend enforces

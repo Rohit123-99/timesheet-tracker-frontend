@@ -45,23 +45,31 @@ export default function SprintDashboard() {
 
   if (!overview || overview.days.length === 0) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="p-6 space-y-6">
         <div>
           <h2 className="text-2xl font-semibold">Sprint Dashboard</h2>
           <p className="text-sm text-muted-foreground mt-1">
             Track your 14-day SDET sprint
           </p>
         </div>
-        <Card className="p-8 text-center space-y-3">
-          <Flag className="w-10 h-10 mx-auto text-muted-foreground" />
-          <p className="font-medium">No sprint tasks yet</p>
-          <p className="text-sm text-muted-foreground">
-            Import the SDET sprint plan from Settings → Sprint Plan Import to
-            generate Block A/B/C/D tasks for each of the 14 days.
-          </p>
-          <Link to="/settings">
-            <Button className="mt-2">Go to Settings</Button>
-          </Link>
+        <Card className="p-10 bg-gradient-to-br from-card to-card/50 shadow-md border-border/60">
+          <div className="flex flex-col items-center text-center gap-4 max-w-md mx-auto">
+            <div className="p-4 rounded-full bg-gradient-to-br from-blue-500/15 to-purple-500/15 border border-blue-300/40 dark:border-blue-700/40">
+              <Flag className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-lg font-semibold">No sprint tasks yet</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Import the SDET sprint plan to generate Block A/B/C/D tasks for
+                each of the 14 days.
+              </p>
+            </div>
+            <Link to="/settings" className="mt-2">
+              <Button className="gap-2 text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600">
+                Go to Settings
+              </Button>
+            </Link>
+          </div>
         </Card>
       </div>
     );

@@ -219,7 +219,19 @@ export default function Dashboard() {
         <p className="text-sm text-muted-foreground mt-1">Track daily progress and today's execution</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      {/* Streak chip — small, lives above the stat row to match Figma's
+          uncluttered 3-card layout */}
+      {(currentStreak > 0 || longestStreak > 0) && (
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-orange-500/15 to-red-500/15 border border-orange-300/40 dark:border-orange-700/40 text-sm">
+          <Flame className="w-4 h-4 text-orange-500" />
+          <span className="font-semibold">{currentStreak}-day streak</span>
+          {longestStreak > 0 && (
+            <span className="text-muted-foreground text-xs">· longest {longestStreak}</span>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Total Hours Today"
           value={formatHours(totalWorked)}
@@ -240,13 +252,6 @@ export default function Dashboard() {
           icon={TrendingUp}
           gradient="from-purple-500 to-pink-500"
           description="Per day"
-        />
-        <StatCard
-          title="Goal Streak"
-          value={`${currentStreak} day${currentStreak === 1 ? '' : 's'}`}
-          icon={Flame}
-          gradient="from-orange-500 to-red-500"
-          description={longestStreak > 0 ? `Longest: ${longestStreak} days` : 'Hit your daily target to start'}
         />
       </div>
 
