@@ -134,6 +134,40 @@ export const exportReportPdfForRangeToPath = async (filepath: string, startDate:
   });
 };
 
+export interface SprintImportResult {
+  status: string;
+  start_date: string;
+  end_date: string;
+  days_parsed: number;
+  created: number;
+  skipped: number;
+  deleted: number;
+}
+
+export const importSprintPlan = async (
+  mdPath: string,
+  startDate: string,
+  replace: boolean,
+): Promise<SprintImportResult> => {
+  return request<SprintImportResult>('/import/sprint', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ md_path: mdPath, start_date: startDate, replace }),
+  });
+};
+
+export const importSprintPlanInline = async (
+  markdown: string,
+  startDate: string,
+  replace: boolean,
+): Promise<SprintImportResult> => {
+  return request<SprintImportResult>('/import/sprint/inline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ markdown, start_date: startDate, replace }),
+  });
+};
+
 export const exportAllData = async (): Promise<Blob> => {
   const response = await fetch(`${API_BASE}/export/all`);
   if (!response.ok) {
