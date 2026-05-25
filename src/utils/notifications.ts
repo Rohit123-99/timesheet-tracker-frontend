@@ -41,3 +41,23 @@ export function showSimpleNotification(title: string, body: string) {
   const n = new Notification(title, { body });
   setTimeout(() => n.close(), 6000);
 }
+
+/**
+ * Loud, sticky notification — used at Pomodoro phase transitions so the user
+ * can't miss the end-of-focus / end-of-break signal. Does not auto-close;
+ * the user must dismiss it.
+ */
+export function showStickyPhaseNotification(title: string, body: string) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+    return;
+  }
+  const n = new Notification(title, {
+    body,
+    requireInteraction: true,
+    tag: 'pomodoro-phase-end',
+  });
+  n.onclick = () => {
+    window.focus();
+    n.close();
+  };
+}

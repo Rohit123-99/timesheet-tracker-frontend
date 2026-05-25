@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -9,6 +9,9 @@ import {
   RotateCcw,
   SkipForward,
   Timer as TimerIcon,
+  Volume2,
+  VolumeX,
+  Bell,
   X,
 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -22,9 +25,10 @@ import {
 import { fetchTasksForDate, updateTask } from '../data/api';
 import type { Task as ApiTask } from '../types';
 import {
-  showSimpleNotification,
+  showStickyPhaseNotification,
   requestNotificationPermission,
 } from '../utils/notifications';
+import { playPhaseAlarm, playLongAlarm } from '../utils/audio';
 import { toLocalDateString } from '../utils/helpers';
 import { cn } from '../utils/cn';
 
@@ -66,9 +70,27 @@ interface PomodoroWidgetProps {
  * task's `actualHours` via PUT /api/tasks/{id}. State (phase, end time, linked
  * task) is persisted in localStorage so the widget survives a refresh.
  */
+const ALARM_PREF_KEY = 'timesheet:pomodoro-alarm-on';
+
 export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [todayTasks, setTodayTasks] = useState<ApiTask[]>([]);
+  const [alarmOn, setAlarmOn] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(ALARM_PREF_KEY) !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const alarmOnRef = useRef(alarmOn);
+  useEffect(() => {
+    alarmOnRef.current = alarmOn;
+    try {
+      window.localStorage.setItem(ALARM_PREF_KEY, alarmOn ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [alarmOn]);
 
   const todayStr = useMemo(() => toLocalDateString(new Date()), []);
 
@@ -120,10 +142,41 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
     [todayStr],
   );
 
-  const handlePhaseEnd = useCallback((endedPhase: PomodoroPhase, nextPhase: PomodoroPhase) => {
-    const ended = PHASE_META[endedPhase].label;
-    const next = PHASE_META[nextPhase].label;
-    showSimpleNotification(`${ended} complete`, `Starting ${next}.`);
+  const handlePhaseEnd = useCallback(
+    (endedPhase: PomodoroPhase, nextPhase: PomodoroPhase) => {
+      const ended = PHASE_META[endedPhase].label;
+      const next = PHASE_META[nextPhase].label;
+
+      // 1. Audio alarm — louder version when a long break ends
+      if (alarmOnRef.current) {
+        if (endedPhase === 'long_break') playLongAlarm();
+        else playPhaseAlarm();
+      }
+
+      // 2. Sticky OS notification — user must dismiss
+      showStickyPhaseNotification(
+        `${ended} complete — time for ${next}`,
+        endedPhase === 'focus'
+          ? `Step away from the screen for a bit.`
+          : `Break over. Ready for another focus session?`,
+      );
+
+      // 3. Auto-expand the widget so the new phase + remaining time are
+      //    visible without clicking
+      setOpen(true);
+
+      // 4. In-app toast as a backup if notifications are blocked
+      toast(
+        endedPhase === 'focus' ? `Focus done — ${next} starting` : `${next} starting now`,
+        { duration: 6000 },
+      );
+    },
+    [],
+  );
+
+  const handleTestAlarm = useCallback(() => {
+    playPhaseAlarm();
+    toast.success('Alarm test — you should have heard 3 beeps');
   }, []);
 
   const {
@@ -219,8 +272,15 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
             style={{ pointerEvents: 'auto', width: 360 }}
           >
             <Card
-              className="shadow-2xl border-border/60 overflow-hidden bg-white/98 dark:bg-card/98 backdrop-blur"
-              style={{ maxHeight: 'calc(100vh - 32px)', overflowY: 'auto' }}
+              className="shadow-2xl border-border/60 overflow-hidden"
+              style={{
+                // Force opaque background. var(--card) resolves to the theme's
+                // card surface; fallback covers dark mode if --card isn't set.
+                background: 'var(--card, #111114)',
+                color: 'var(--card-foreground, #f4f4f5)',
+                maxHeight: 'calc(100vh - 32px)',
+                overflowY: 'auto',
+              }}
             >
               {/* Gradient header */}
               <div
@@ -230,11 +290,24 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
                 )}
                 style={{ padding: '14px 16px' }}
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon className="w-5 h-5" />
-                  <div>
-                    <p className="font-semibold leading-tight">{meta.label}</p>
-                    <p className="text-xs opacity-90 leading-tight mt-0.5">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: 'rgba(255, 255, 255, 0.22)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+                    <p className="font-semibold">{meta.label}</p>
+                    <p className="text-xs opacity-90" style={{ marginTop: 2 }}>
                       Cycle {cyclesCompleted + (phase === 'focus' ? 1 : 0)}
                     </p>
                   </div>
@@ -361,10 +434,48 @@ export function PomodoroWidget({ defaultOpen = false }: PomodoroWidgetProps) {
                   </p>
                 </div>
 
+                {/* Alarm controls */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 8,
+                    borderTop: '1px solid var(--border, rgba(255,255,255,0.1))',
+                    paddingTop: 12,
+                  }}
+                >
+                  <Button
+                    onClick={() => setAlarmOn((v) => !v)}
+                    variant="outline"
+                    className="gap-2"
+                    title={alarmOn ? 'Mute end-of-phase alarm' : 'Un-mute end-of-phase alarm'}
+                  >
+                    {alarmOn ? (
+                      <>
+                        <Volume2 className="w-3.5 h-3.5 text-green-500" />
+                        <span className="text-xs">Alarm on</span>
+                      </>
+                    ) : (
+                      <>
+                        <VolumeX className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-xs">Muted</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleTestAlarm}
+                    variant="outline"
+                    className="gap-2"
+                    title="Hear what the end-of-phase alarm sounds like"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    <span className="text-xs">Test alarm</span>
+                  </Button>
+                </div>
+
                 {/* Footer info */}
                 <div
-                  className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/60"
-                  style={{ paddingTop: 12 }}
+                  className="flex items-center justify-between text-[11px] text-muted-foreground"
                 >
                   <span>25m focus · 5m / 15m breaks</span>
                   <span>
