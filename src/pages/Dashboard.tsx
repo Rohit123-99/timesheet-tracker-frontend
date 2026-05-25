@@ -231,7 +231,18 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/*
+        NOTE: this project's index.css is a frozen Tailwind v4 compile that
+        doesn't include `md:grid-cols-*` etc. Using inline grid styles so
+        responsive layout actually works.
+      */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '1.5rem',
+        }}
+      >
         <StatCard
           title="Total Hours Today"
           value={formatHours(totalWorked)}

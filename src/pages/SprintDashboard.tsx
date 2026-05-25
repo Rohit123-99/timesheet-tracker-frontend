@@ -2,26 +2,202 @@ import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { CheckCircle2, Circle, Flag, Layers, TrendingUp, Hourglass } from 'lucide-react';
+import {
+  CheckCircle2,
+  Circle,
+  Flag,
+  Layers,
+  TrendingUp,
+  Hourglass,
+  Brain,
+  Hammer,
+  Dumbbell,
+  Rocket,
+} from 'lucide-react';
 import { StatCard } from '../components/StatCard';
-import { fetchSprintOverview, type SprintOverview } from '../data/api';
+import { fetchSprintOverview, type SprintOverview, type SprintOverviewDay } from '../data/api';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { cn } from '../utils/cn';
 
-const BLOCK_COLORS: Record<string, string> = {
-  A: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-  B: 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-  C: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-  D: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+/**
+ * NOTE: This project's `src/index.css` is a frozen Tailwind v4 compile that
+ * only contains a small set of utility classes (no `md:grid-cols-*`,
+ * `xl:grid-cols-*`, `col-span-3`, etc.). For real grid layouts we use
+ * inline `style={{ display: 'grid', gridTemplateColumns: '...' }}` which
+ * is browser-native and works regardless of which Tailwind classes are
+ * actually in the stylesheet.
+ */
+
+const STAT_GRID_STYLE: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '1.25rem',
 };
 
-const BLOCK_LABEL: Record<string, string> = {
-  A: 'Learn',
-  B: 'Build',
-  C: 'Practice',
-  D: 'Ship',
+const DAY_CARD_GRID_STYLE: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+  gap: '1rem',
 };
+
+const BLOCK_TILE_ROW_STYLE: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, 1fr)',
+  gap: '0.5rem',
+};
+
+const BLOCK_META: Record<string, {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  bg: string;
+  text: string;
+  border: string;
+  doneRing: string;
+}> = {
+  A: {
+    label: 'Learn',
+    icon: Brain,
+    bg: 'bg-blue-100 dark:bg-blue-950/40',
+    text: 'text-blue-700 dark:text-blue-300',
+    border: 'border-blue-200 dark:border-blue-800',
+    doneRing: 'ring-2 ring-blue-500/70',
+  },
+  B: {
+    label: 'Build',
+    icon: Hammer,
+    bg: 'bg-purple-100 dark:bg-purple-950/40',
+    text: 'text-purple-700 dark:text-purple-300',
+    border: 'border-purple-200 dark:border-purple-800',
+    doneRing: 'ring-2 ring-purple-500/70',
+  },
+  C: {
+    label: 'Practice',
+    icon: Dumbbell,
+    bg: 'bg-amber-100 dark:bg-amber-950/40',
+    text: 'text-amber-700 dark:text-amber-300',
+    border: 'border-amber-200 dark:border-amber-800',
+    doneRing: 'ring-2 ring-amber-500/70',
+  },
+  D: {
+    label: 'Ship',
+    icon: Rocket,
+    bg: 'bg-emerald-100 dark:bg-emerald-950/40',
+    text: 'text-emerald-700 dark:text-emerald-300',
+    border: 'border-emerald-200 dark:border-emerald-800',
+    doneRing: 'ring-2 ring-emerald-500/70',
+  },
+};
+
+function BlockTile({
+  letter,
+  task,
+}: {
+  letter: 'A' | 'B' | 'C' | 'D';
+  task: SprintOverviewDay['tasks'][number] | undefined;
+}) {
+  const meta = BLOCK_META[letter];
+  const Icon = meta.icon;
+  const expected = task?.expected_hours ?? 0;
+  const hours = task?.hours ?? 0;
+  const done = task && expected > 0 && hours >= 0.8 * expected;
+  const empty = !task;
+
+  return (
+    <div
+      title={
+        task
+          ? `Block ${letter} (${meta.label}) — ${hours}/${expected}h`
+          : `Block ${letter} — not imported`
+      }
+      className={cn(
+        'rounded-lg border px-2 py-2 flex flex-col items-center justify-center text-center transition-colors',
+        meta.bg,
+        meta.text,
+        meta.border,
+        done && meta.doneRing,
+        empty && 'opacity-40',
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <Icon className="w-3.5 h-3.5" />
+        <span className="text-xs font-bold leading-none">{letter}</span>
+      </div>
+      <span className="text-[10px] leading-tight mt-1 opacity-90">
+        {task ? `${hours.toFixed(1)}/${expected}h` : '—'}
+      </span>
+    </div>
+  );
+}
+
+function DayCard({ day }: { day: SprintOverviewDay }) {
+  return (
+    <Card
+      className={cn(
+        'p-4 transition-all hover:shadow-lg',
+        day.complete
+          ? 'bg-emerald-50/70 dark:bg-emerald-950/15 border-emerald-200/70 dark:border-emerald-800/50'
+          : 'bg-card border-border',
+      )}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div
+            className={cn(
+              'flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold',
+              day.complete
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white'
+                : 'bg-gradient-to-br from-blue-500 to-purple-500 text-white',
+            )}
+          >
+            {day.day_number ?? '?'}
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold leading-tight">Day {day.day_number ?? '?'}</p>
+            <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{day.date}</p>
+          </div>
+        </div>
+        <div className="flex-shrink-0">
+          {day.complete ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          ) : (
+            <Circle className="w-5 h-5 text-muted-foreground/60" />
+          )}
+        </div>
+      </div>
+
+      <div style={BLOCK_TILE_ROW_STYLE} className="mb-3">
+        {(['A', 'B', 'C', 'D'] as const).map((letter) => (
+          <BlockTile
+            key={letter}
+            letter={letter}
+            task={day.tasks.find((t) => t.block === letter)}
+          />
+        ))}
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">
+            {day.worked_hours.toFixed(1)} / {day.expected_hours.toFixed(1)}h
+          </span>
+          <span className="font-semibold">{day.completion_pct.toFixed(0)}%</span>
+        </div>
+        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+          <div
+            className={cn(
+              'h-full transition-all duration-500',
+              day.complete
+                ? 'bg-gradient-to-r from-emerald-400 to-teal-500'
+                : 'bg-gradient-to-r from-blue-400 to-purple-500',
+            )}
+            style={{ width: `${Math.min(100, day.completion_pct)}%` }}
+          />
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export default function SprintDashboard() {
   const [overview, setOverview] = useState<SprintOverview | null>(null);
@@ -79,7 +255,7 @@ export default function SprintDashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-2xl font-semibold">Sprint Dashboard</h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -91,7 +267,7 @@ export default function SprintDashboard() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div style={STAT_GRID_STYLE}>
         <StatCard
           title="Overall Progress"
           value={`${summary.overall_pct}%`}
@@ -104,7 +280,7 @@ export default function SprintDashboard() {
           value={`${summary.completed_days}/${summary.total_days}`}
           icon={CheckCircle2}
           gradient="from-emerald-500 to-teal-500"
-          description=">=80% of day's expected hours"
+          description=">=80% of expected hours"
         />
         <StatCard
           title="Hours Logged"
@@ -122,91 +298,29 @@ export default function SprintDashboard() {
         />
       </div>
 
-      <Card className="p-6 bg-gradient-to-br from-card to-card/50 shadow-md">
-        <h3 className="text-lg font-semibold mb-1">Daily breakdown</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Each row is one sprint day, showing per-block progress (Learn / Build / Practice / Ship).
-        </p>
+      <div>
+        <div className="flex items-baseline justify-between mb-3">
+          <div>
+            <h3 className="text-lg font-semibold">Daily breakdown</h3>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              One card per sprint day · Block A (Learn) · B (Build) · C (Practice) · D (Ship)
+            </p>
+          </div>
+        </div>
 
-        <div className="space-y-3">
+        <div style={DAY_CARD_GRID_STYLE}>
           {days.map((day, i) => (
             <motion.div
               key={day.date}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.02 }}
-              className={cn(
-                'p-4 rounded-xl border transition-colors',
-                day.complete
-                  ? 'bg-emerald-50/70 dark:bg-emerald-950/15 border-emerald-200/70 dark:border-emerald-800/50'
-                  : 'bg-muted/30 border-border',
-              )}
+              transition={{ delay: Math.min(i * 0.03, 0.4) }}
             >
-              <div className="grid grid-cols-12 gap-3 items-center">
-                <div className="col-span-3 flex items-center gap-3">
-                  {day.complete ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                  ) : (
-                    <Circle className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                  )}
-                  <div>
-                    <p className="font-medium">
-                      Day {day.day_number ?? '?'}{' '}
-                      <span className="text-muted-foreground font-normal text-xs">· {day.date}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {day.worked_hours.toFixed(1)} / {day.expected_hours.toFixed(1)}h
-                    </p>
-                  </div>
-                </div>
-
-                <div className="col-span-7 flex items-center gap-2">
-                  {(['A', 'B', 'C', 'D'] as const).map((letter) => {
-                    const t = day.tasks.find((x) => x.block === letter);
-                    const done = t && t.expected_hours > 0 && t.hours >= 0.8 * t.expected_hours;
-                    const partial = t && t.hours > 0 && !done;
-                    return (
-                      <div
-                        key={letter}
-                        title={t ? `Block ${letter} (${BLOCK_LABEL[letter]}) — ${t.hours}/${t.expected_hours}h` : `Block ${letter} — not imported`}
-                        className={cn(
-                          'flex-1 h-12 rounded-md border flex flex-col items-center justify-center text-xs',
-                          BLOCK_COLORS[letter],
-                          done && 'ring-2 ring-emerald-400 dark:ring-emerald-600',
-                          !t && 'opacity-40',
-                          partial && 'opacity-95',
-                        )}
-                      >
-                        <span className="font-semibold leading-none">{letter}</span>
-                        <span className="leading-none text-[10px] mt-0.5">
-                          {t ? `${t.hours.toFixed(1)}/${t.expected_hours}h` : '—'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="col-span-2 text-right">
-                  <div className="inline-block text-right">
-                    <p className="text-sm font-semibold">{day.completion_pct.toFixed(0)}%</p>
-                    <div className="h-1.5 w-20 bg-muted rounded-full overflow-hidden mt-1">
-                      <div
-                        className={cn(
-                          'h-full',
-                          day.complete
-                            ? 'bg-gradient-to-r from-emerald-400 to-teal-500'
-                            : 'bg-gradient-to-r from-blue-400 to-purple-500',
-                        )}
-                        style={{ width: `${Math.min(100, day.completion_pct)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <DayCard day={day} />
             </motion.div>
           ))}
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
